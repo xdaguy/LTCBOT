@@ -38,18 +38,39 @@ class BinanceWebSocket:
             data = json.loads(message)
             self.last_price = float(data['p'])  # Mark price
 
-            # Get trading signal
-            signal = strategy.get_signal()
+            # Get trading signal which includes all indicators
+            signal_data = strategy.get_signal()
             
-            if signal and self.is_trading:
-                await self.execute_automated_trading(signal)
+            if signal_data:
+                # Get chart data for all timeframes
+                chart_data_1m = strategy.get_chart_data('1m')
+                chart_data_15m = strategy.get_chart_data('15m')
+                chart_data_1h = strategy.get_chart_data('1h')
 
-            # Broadcast price update to all connected clients
-            await self.broadcast({
-                'price': self.last_price,
-                'signal': signal,
-                'timestamp': data['E']
-            })
+                # Prepare data for broadcast
+                broadcast_data = {
+                    'price': self.last_price,
+                    'signal': signal_data['signal'],
+                    'timestamp': data['E'],
+                    'rsi': signal_data['rsi'],
+                    'ema_short': signal_data['ema_short'],
+                    'ema_long': signal_data['ema_long'],
+                    'timeframe': signal_data['timeframe'],
+                    'ema_trend': signal_data['ema_trend'],
+                    'trend_strength': signal_data['trend_strength'],
+                    'indicators': signal_data['indicators'],
+                    'stop_loss': signal_data['stop_loss'],
+                    'take_profit': signal_data['take_profit'],
+                    'chart_data_1m': chart_data_1m,
+                    'chart_data_15m': chart_data_15m,
+                    'chart_data_1h': chart_data_1h
+                }
+
+                if signal_data['signal'] != 'HOLD' and self.is_trading:
+                    await self.execute_automated_trading(signal_data)
+
+                # Broadcast data to all connected clients
+                await self.broadcast(broadcast_data)
 
         except Exception as e:
             logger.error(f"Error handling message: {e}")

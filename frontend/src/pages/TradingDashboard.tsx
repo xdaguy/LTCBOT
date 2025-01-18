@@ -67,6 +67,7 @@ const TradingDashboard = () => {
   const [chartData15m, setChartData15m] = useState<any[]>([]);
   const [chartData1h, setChartData1h] = useState<any[]>([]);
   const [chartData1m, setChartData1m] = useState<any[]>([]);
+  const [wsConnected, setWsConnected] = useState<boolean>(false);
 
   const cardBg = useColorModeValue('gray.800', 'gray.800');
   const borderColor = useColorModeValue('gray.700', 'gray.700');
@@ -74,50 +75,85 @@ const TradingDashboard = () => {
   const mutedTextColor = useColorModeValue('gray.400', 'gray.400');
 
   useEffect(() => {
-    const fetchData = async () => {
+    // Initial data fetch
+    const fetchInitialData = async () => {
       try {
         const response = await axios.get<ApiResponse>('http://localhost:8000/price');
-        const data = response.data;
-        console.log('RSI value from API:', data.rsi);
-
-        if (data.price !== undefined && data.price !== null) {
-          setPrevPrice(price);
-          setPrice(data.price);
-        }
-        
-        if (data) {
-          setSignal(data.signal || 'NEUTRAL');
-          setRsi(typeof data.rsi === 'number' ? data.rsi : null);
-          setEmaShort(typeof data.ema_short === 'number' ? data.ema_short : null);
-          setEmaLong(typeof data.ema_long === 'number' ? data.ema_long : null);
-          setTimeframe(data.timeframe || '15m');
-          setEmaTrend(data.ema_trend || 'NEUTRAL');
-          if (typeof data.rsi === 'number') {
-            if (data.rsi > 70) {
-              setRsiStatus('OVERBOUGHT');
-            } else if (data.rsi < 30) {
-              setRsiStatus('OVERSOLD');
-            } else {
-              setRsiStatus('NEUTRAL');
-            }
-          } else {
-            setRsiStatus('NEUTRAL');
-          }
-          setTrendStrength(data.trend_strength || 'WEAK');
-          setIndicators(data.indicators || null);
-          setChartData15m(data.chart_data_15m || []);
-          setChartData1h(data.chart_data_1h || []);
-          setChartData1m(data.chart_data_1m || []);
-        }
+        updateData(response.data);
       } catch (error) {
-        console.error('Error fetching data:', error);
+        console.error('Error fetching initial data:', error);
       }
     };
 
-    fetchData();
-    const interval = setInterval(fetchData, 5000);
-    return () => clearInterval(interval);
-  }, [price]);
+    // WebSocket connection
+    const ws = new WebSocket('ws://localhost:8000/ws');
+
+    ws.onopen = () => {
+      console.log('WebSocket Connected');
+      setWsConnected(true);
+    };
+
+    ws.onmessage = (event) => {
+      try {
+        const data = JSON.parse(event.data);
+        updateData(data);
+      } catch (error) {
+        console.error('Error parsing WebSocket message:', error);
+      }
+    };
+
+    ws.onclose = () => {
+      console.log('WebSocket Disconnected');
+      setWsConnected(false);
+    };
+
+    ws.onerror = (error) => {
+      console.error('WebSocket Error:', error);
+      setWsConnected(false);
+    };
+
+    // Fetch initial data
+    fetchInitialData();
+
+    // Cleanup WebSocket on unmount
+    return () => {
+      if (ws.readyState === WebSocket.OPEN) {
+        ws.close();
+      }
+    };
+  }, []);
+
+  const updateData = (data: ApiResponse) => {
+    if (data.price !== undefined && data.price !== null) {
+      setPrevPrice(price);
+      setPrice(data.price);
+    }
+    
+    if (data) {
+      setSignal(data.signal || 'NEUTRAL');
+      setRsi(typeof data.rsi === 'number' ? data.rsi : null);
+      setEmaShort(typeof data.ema_short === 'number' ? data.ema_short : null);
+      setEmaLong(typeof data.ema_long === 'number' ? data.ema_long : null);
+      setTimeframe(data.timeframe || '15m');
+      setEmaTrend(data.ema_trend || 'NEUTRAL');
+      if (typeof data.rsi === 'number') {
+        if (data.rsi > 70) {
+          setRsiStatus('OVERBOUGHT');
+        } else if (data.rsi < 30) {
+          setRsiStatus('OVERSOLD');
+        } else {
+          setRsiStatus('NEUTRAL');
+        }
+      } else {
+        setRsiStatus('NEUTRAL');
+      }
+      setTrendStrength(data.trend_strength || 'WEAK');
+      setIndicators(data.indicators || null);
+      setChartData15m(data.chart_data_15m || []);
+      setChartData1h(data.chart_data_1h || []);
+      setChartData1m(data.chart_data_1m || []);
+    }
+  };
 
   const priceChange = useMemo(() => {
     if (price === null || prevPrice === null || price === undefined || prevPrice === undefined) {
