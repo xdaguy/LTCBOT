@@ -58,10 +58,36 @@ async def get_position():
 
 @app.get("/price")
 async def get_price():
-    price = binance_client.get_mark_price()
-    if not price:
-        raise HTTPException(status_code=500, detail="Failed to fetch price")
-    return {"price": price}
+    try:
+        price = binance_client.get_mark_price()
+        if not price:
+            raise HTTPException(status_code=500, detail="Failed to fetch price")
+        
+        # Get historical data for both timeframes
+        klines_15m = binance_client.get_historical_klines(interval="15m", limit=96)  # Last 24 hours
+        klines_1h = binance_client.get_historical_klines(interval="1h", limit=168)   # Last 7 days
+        
+        logger.info(f"15m klines: {len(klines_15m) if klines_15m else 0} entries")
+        logger.info(f"1h klines: {len(klines_1h) if klines_1h else 0} entries")
+        
+        # Get trading signal
+        signal = strategy.get_signal()
+        
+        response_data = {
+            "price": price,
+            "signal": signal.get("signal") if signal else None,
+            "ema_short": signal.get("ema_short") if signal else None,
+            "ema_long": signal.get("ema_long") if signal else None,
+            "chart_data_15m": klines_15m if klines_15m else [],
+            "chart_data_1h": klines_1h if klines_1h else []
+        }
+        
+        logger.info(f"Sending response with price: {price}")
+        return response_data
+        
+    except Exception as e:
+        logger.error(f"Error in price endpoint: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
 
 @app.get("/signal")
 async def get_trading_signal():

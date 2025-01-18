@@ -2,6 +2,7 @@ from binance.client import Client
 from binance.enums import *
 from .config import settings
 import logging
+from datetime import datetime, timedelta
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -65,6 +66,30 @@ class BinanceClient:
             return float(mark_price['markPrice'])
         except Exception as e:
             logger.error(f"Error getting mark price: {e}")
+            return None
+
+    def get_historical_klines(self, interval: str, limit: int = 100):
+        """Get historical klines/candlestick data"""
+        try:
+            logger.info(f"Fetching klines for {self.symbol} with interval {interval}")
+            klines = self.client.futures_klines(
+                symbol=self.symbol,
+                interval=interval,
+                limit=limit
+            )
+            logger.info(f"Received {len(klines)} klines")
+            
+            formatted_klines = [
+                {
+                    'time': datetime.fromtimestamp(k[0] / 1000).strftime('%Y-%m-%d %H:%M:%S'),
+                    'value': float(k[4])  # Close price
+                }
+                for k in klines
+            ]
+            logger.info(f"Formatted klines: {formatted_klines[:2]}...")  # Log first two entries
+            return formatted_klines
+        except Exception as e:
+            logger.error(f"Error getting historical klines: {e}")
             return None
 
 binance_client = BinanceClient() 
