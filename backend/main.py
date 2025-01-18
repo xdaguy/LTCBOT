@@ -72,20 +72,30 @@ async def get_price():
         logger.info(f"15m klines: {len(klines_15m) if klines_15m else 0} entries")
         logger.info(f"1h klines: {len(klines_1h) if klines_1h else 0} entries")
         
-        # Get trading signal
-        signal = strategy.get_signal()
+        # Get trading signal and indicators
+        signal_data = strategy.get_signal()
+        if not signal_data:
+            raise HTTPException(status_code=500, detail="Failed to get trading signal")
+            
+        logger.info(f"Signal data: {signal_data}")
         
         response_data = {
             "price": price,
-            "signal": signal.get("signal") if signal else None,
-            "ema_short": signal.get("ema_short") if signal else None,
-            "ema_long": signal.get("ema_long") if signal else None,
+            "signal": signal_data.get("signal"),
+            "rsi": signal_data.get("rsi"),
+            "ema_short": signal_data.get("ema_short"),
+            "ema_long": signal_data.get("ema_long"),
+            "timeframe": signal_data.get("timeframe"),
+            "ema_trend": signal_data.get("ema_trend"),
+            "rsi_status": signal_data.get("rsi_status"),
+            "trend_strength": signal_data.get("trend_strength"),
+            "indicators": signal_data.get("indicators"),
             "chart_data_1m": klines_1m if klines_1m else [],
             "chart_data_15m": klines_15m if klines_15m else [],
             "chart_data_1h": klines_1h if klines_1h else []
         }
         
-        logger.info(f"Sending response with price: {price}")
+        logger.info(f"Sending response with RSI: {response_data.get('rsi')}")
         return response_data
         
     except Exception as e:

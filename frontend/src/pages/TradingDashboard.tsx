@@ -19,13 +19,25 @@ import {
 } from '@chakra-ui/react'
 import axios from 'axios'
 import PriceChart from '../components/PriceChart'
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useMemo } from 'react'
 
-interface PriceData {
+interface ApiResponse {
   price: number
-  signal?: 'buy' | 'sell' | 'hold'
-  ema_short?: number
-  ema_long?: number
+  signal: string
+  rsi: number
+  ema_short: number
+  ema_long: number
+  timeframe: string
+  ema_trend: string
+  rsi_status: string
+  trend_strength: string
+  indicators: {
+    rsi_period: number
+    ema_short_period: number
+    ema_long_period: number
+    rsi_overbought: number
+    rsi_oversold: number
+  }
   chart_data_15m?: Array<{
     time: string
     value: number
@@ -43,9 +55,15 @@ interface PriceData {
 const TradingDashboard = () => {
   const [price, setPrice] = useState<number | null>(null);
   const [prevPrice, setPrevPrice] = useState<number | null>(null);
-  const [signal, setSignal] = useState<string | null>(null);
+  const [signal, setSignal] = useState<string>('NEUTRAL');
   const [emaShort, setEmaShort] = useState<number | null>(null);
   const [emaLong, setEmaLong] = useState<number | null>(null);
+  const [rsi, setRsi] = useState<number | null>(null);
+  const [timeframe, setTimeframe] = useState<string>('15m');
+  const [emaTrend, setEmaTrend] = useState<string>('NEUTRAL');
+  const [rsiStatus, setRsiStatus] = useState<string>('NEUTRAL');
+  const [trendStrength, setTrendStrength] = useState<string>('WEAK');
+  const [indicators, setIndicators] = useState<ApiResponse['indicators'] | null>(null);
   const [chartData15m, setChartData15m] = useState<any[]>([]);
   const [chartData1h, setChartData1h] = useState<any[]>([]);
   const [chartData1m, setChartData1m] = useState<any[]>([]);
@@ -58,17 +76,39 @@ const TradingDashboard = () => {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const response = await axios.get('http://localhost:8000/price');
-        if (price !== null) {
+        const response = await axios.get<ApiResponse>('http://localhost:8000/price');
+        const data = response.data;
+        console.log('RSI value from API:', data.rsi);
+
+        if (data.price !== undefined && data.price !== null) {
           setPrevPrice(price);
+          setPrice(data.price);
         }
-        setPrice(response.data.price);
-        setSignal(response.data.signal);
-        setEmaShort(response.data.ema_short);
-        setEmaLong(response.data.ema_long);
-        setChartData15m(response.data.chart_data_15m || []);
-        setChartData1h(response.data.chart_data_1h || []);
-        setChartData1m(response.data.chart_data_1m || []);
+        
+        if (data) {
+          setSignal(data.signal || 'NEUTRAL');
+          setRsi(typeof data.rsi === 'number' ? data.rsi : null);
+          setEmaShort(typeof data.ema_short === 'number' ? data.ema_short : null);
+          setEmaLong(typeof data.ema_long === 'number' ? data.ema_long : null);
+          setTimeframe(data.timeframe || '15m');
+          setEmaTrend(data.ema_trend || 'NEUTRAL');
+          if (typeof data.rsi === 'number') {
+            if (data.rsi > 70) {
+              setRsiStatus('OVERBOUGHT');
+            } else if (data.rsi < 30) {
+              setRsiStatus('OVERSOLD');
+            } else {
+              setRsiStatus('NEUTRAL');
+            }
+          } else {
+            setRsiStatus('NEUTRAL');
+          }
+          setTrendStrength(data.trend_strength || 'WEAK');
+          setIndicators(data.indicators || null);
+          setChartData15m(data.chart_data_15m || []);
+          setChartData1h(data.chart_data_1h || []);
+          setChartData1m(data.chart_data_1m || []);
+        }
       } catch (error) {
         console.error('Error fetching data:', error);
       }
@@ -79,31 +119,29 @@ const TradingDashboard = () => {
     return () => clearInterval(interval);
   }, [price]);
 
-  // Calculate price change direction
-  const priceChange = price && prevPrice ? ((price - prevPrice) / prevPrice) * 100 : 0;
-  const priceDirection = priceChange > 0 ? 'up' : priceChange < 0 ? 'down' : 'neutral';
+  const priceChange = useMemo(() => {
+    if (price === null || prevPrice === null || price === undefined || prevPrice === undefined) {
+      return null;
+    }
+    if (prevPrice === 0) {
+      return 0;
+    }
+    return ((price - prevPrice) / prevPrice) * 100;
+  }, [price, prevPrice]);
 
-  // Mock RSI calculation (replace with actual RSI when available)
-  const getRSI = () => {
-    if (!chartData1m.length) return null;
-    const lastFewPrices = chartData1m.slice(-14).map(d => d.value);
-    const gains = lastFewPrices.map((price, i) => 
-      i > 0 ? Math.max(price - lastFewPrices[i-1], 0) : 0
-    ).slice(1);
-    const losses = lastFewPrices.map((price, i) => 
-      i > 0 ? Math.abs(Math.min(price - lastFewPrices[i-1], 0)) : 0
-    ).slice(1);
-    
-    const avgGain = gains.reduce((a, b) => a + b, 0) / gains.length;
-    const avgLoss = losses.reduce((a, b) => a + b, 0) / losses.length;
-    
-    if (avgLoss === 0) return 100;
-    const RS = avgGain / avgLoss;
-    return 100 - (100 / (1 + RS));
-  };
+  const priceDirection = useMemo(() => {
+    if (priceChange === null || priceChange === undefined) {
+      return 'neutral';
+    }
+    return priceChange > 0 ? 'up' : priceChange < 0 ? 'down' : 'neutral';
+  }, [priceChange]);
 
-  const rsi = getRSI();
-  const rsiColor = rsi ? (rsi > 70 ? 'red.500' : rsi < 30 ? 'green.500' : 'gray.500') : 'gray.500';
+  const rsiColor = useMemo(() => {
+    if (typeof rsi !== 'number') return 'gray.500';
+    if (rsi > 70) return 'red.500';
+    if (rsi < 30) return 'green.500';
+    return 'gray.500';
+  }, [rsi]);
 
   return (
     <VStack spacing={4} align="stretch" p={4} bg="gray.900" minH="100vh">
@@ -114,8 +152,10 @@ const TradingDashboard = () => {
             <VStack align="start" spacing={1}>
               <Text fontSize="sm" color={mutedTextColor}>LTC-USDT Price</Text>
               <HStack spacing={2}>
-                <Text fontSize="2xl" color={textColor}>${price?.toFixed(2) || '-.--'}</Text>
-                {priceChange !== 0 && (
+                <Text fontSize="2xl" color={textColor}>
+                  ${typeof price === 'number' ? price.toFixed(2) : '-.--'}
+                </Text>
+                {typeof priceChange === 'number' && (
                   <Badge colorScheme={priceDirection === 'up' ? 'green' : 'red'}>
                     {priceChange > 0 ? '+' : ''}{priceChange.toFixed(2)}%
                   </Badge>
@@ -144,13 +184,19 @@ const TradingDashboard = () => {
         <Card bg={cardBg} borderColor={borderColor} borderWidth="1px" boxShadow="lg">
           <CardBody>
             <VStack align="start" spacing={1}>
-              <Text fontSize="sm" color={mutedTextColor}>RSI (14)</Text>
+              <Text fontSize="sm" color={mutedTextColor}>RSI ({indicators?.rsi_period || 14})</Text>
               <HStack>
-                <Text fontSize="xl" color={rsiColor}>{rsi?.toFixed(1) || '-'}</Text>
+                <Text fontSize="xl" color={rsiColor}>
+                  {typeof rsi === 'number' ? rsi.toFixed(1) : '-'}
+                </Text>
                 <Badge 
-                  colorScheme={rsi ? (rsi > 70 ? 'red' : rsi < 30 ? 'green' : 'gray') : 'gray'}
+                  colorScheme={
+                    rsiStatus === 'OVERBOUGHT' ? 'red' : 
+                    rsiStatus === 'OVERSOLD' ? 'green' : 
+                    'gray'
+                  }
                 >
-                  {rsi ? (rsi > 70 ? 'OVERBOUGHT' : rsi < 30 ? 'OVERSOLD' : 'NEUTRAL') : 'N/A'}
+                  {rsiStatus}
                 </Badge>
               </HStack>
             </VStack>
@@ -163,18 +209,18 @@ const TradingDashboard = () => {
         <Card bg={cardBg} borderColor={borderColor} borderWidth="1px" boxShadow="lg">
           <CardBody>
             <VStack align="start" spacing={2}>
-              <Text fontSize="sm" color={mutedTextColor}>EMA Indicators</Text>
+              <Text fontSize="sm" color={mutedTextColor}>EMA Indicators ({timeframe})</Text>
               <HStack spacing={4} divider={<Divider orientation="vertical" borderColor={borderColor} />}>
                 <VStack align="start" spacing={0}>
-                  <Text fontSize="xs" color={mutedTextColor}>EMA (7)</Text>
+                  <Text fontSize="xs" color={mutedTextColor}>EMA ({indicators?.ema_short_period || 9})</Text>
                   <Text fontSize="lg" color="blue.400">{emaShort?.toFixed(2) || '-'}</Text>
                 </VStack>
                 <VStack align="start" spacing={0}>
-                  <Text fontSize="xs" color={mutedTextColor}>EMA (25)</Text>
+                  <Text fontSize="xs" color={mutedTextColor}>EMA ({indicators?.ema_long_period || 21})</Text>
                   <Text fontSize="lg" color="purple.400">{emaLong?.toFixed(2) || '-'}</Text>
                 </VStack>
-                <Badge colorScheme={emaShort && emaLong ? (emaShort > emaLong ? 'green' : 'red') : 'gray'}>
-                  {emaShort && emaLong ? (emaShort > emaLong ? 'BULLISH' : 'BEARISH') : 'N/A'}
+                <Badge colorScheme={emaTrend === 'BULLISH' ? 'green' : 'red'}>
+                  {emaTrend}
                 </Badge>
               </HStack>
             </VStack>
@@ -188,22 +234,18 @@ const TradingDashboard = () => {
               <HStack spacing={4}>
                 <Badge 
                   colorScheme={
-                    emaShort && emaLong && price
-                      ? (price > emaShort && emaShort > emaLong ? 'green' 
-                        : price < emaShort && emaShort < emaLong ? 'red' 
-                        : 'yellow')
-                      : 'gray'
+                    emaTrend === 'BULLISH' 
+                      ? (trendStrength === 'STRONG' ? 'green' : 'yellow')
+                      : (trendStrength === 'STRONG' ? 'red' : 'yellow')
                   }
                   fontSize="md"
                   px={3}
                   py={1}
                   variant="solid"
                 >
-                  {emaShort && emaLong && price
-                    ? (price > emaShort && emaShort > emaLong ? 'STRONG UPTREND'
-                      : price < emaShort && emaShort < emaLong ? 'STRONG DOWNTREND'
-                      : 'CONSOLIDATING')
-                    : 'N/A'}
+                  {emaTrend === 'BULLISH' 
+                    ? (trendStrength === 'STRONG' ? 'STRONG UPTREND' : 'WEAK UPTREND')
+                    : (trendStrength === 'STRONG' ? 'STRONG DOWNTREND' : 'WEAK DOWNTREND')}
                 </Badge>
               </HStack>
             </VStack>
