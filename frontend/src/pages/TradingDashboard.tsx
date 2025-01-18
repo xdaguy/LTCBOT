@@ -239,6 +239,92 @@ const TradingDashboard = () => {
           </CardBody>
         </Card>
       </SimpleGrid>
+
+      {/* Visual separator */}
+      <Divider borderColor="gray.600" />
+
+      {/* QR Code Section */}
+      <Card bg={cardBg} borderColor={borderColor} borderWidth="1px" boxShadow="lg">
+        <CardBody>
+          <Flex direction={{ base: 'column', md: 'row' }} align="start" justify="space-between" gap={8}>
+            {/* Left Section - QR Code and Text */}
+            <Flex direction={{ base: 'column', md: 'row' }} align="start" gap={8}>
+              {/* QR Code */}
+              <Box
+                as="img"
+                src={`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=https://copytrade.securecrypto.cash`}
+                alt="Copy Trading QR Code"
+                width="160px"
+                height="160px"
+                borderRadius="lg"
+                bg="white"
+                p={3}
+                boxShadow="lg"
+              />
+              
+              {/* Text Content */}
+              <VStack align="start" spacing={3}>
+                <VStack align="start" spacing={1}>
+                  <Text fontSize="2xl" fontWeight="bold" bgGradient="linear(to-r, blue.400, purple.500)" bgClip="text">
+                    Start Copy Trading
+                  </Text>
+                  <Text fontSize="md" color={mutedTextColor}>
+                    Scan the QR code to begin your automated trading journey
+                  </Text>
+                </VStack>
+                
+                <Divider borderColor="gray.600" />
+                
+                <VStack align="start" spacing={2}>
+                  <Text fontSize="md" color={textColor} fontWeight="medium">
+                    Available on Multiple Platforms:
+                  </Text>
+                  <HStack spacing={3}>
+                    <Text color="blue.400">Binance</Text>
+                    <Text color="purple.400">KuCoin</Text>
+                    <Text color="green.400">MEXC</Text>
+                    <Text color="orange.400">More...</Text>
+                  </HStack>
+                </VStack>
+              </VStack>
+            </Flex>
+
+            {/* Right Section - Trading Stats */}
+            <VStack align="end" spacing={6} minW={{ md: '300px' }}>
+              {/* First Line - Copy Traders and ROI */}
+              <HStack spacing={12} align="start">
+                <VStack align="center" spacing={1}>
+                  <Text fontSize="sm" color={mutedTextColor}>Copy Traders</Text>
+                  <Text fontSize="2xl" color={textColor} fontWeight="bold">2,547</Text>
+                </VStack>
+
+                <VStack align="center" spacing={1}>
+                  <Text fontSize="sm" color={mutedTextColor}>ROI (30d)</Text>
+                  <Text fontSize="2xl" color="green.400" fontWeight="bold">+187.5%</Text>
+                </VStack>
+              </HStack>
+
+              {/* Second Line - Strategy, Profit Share, Win Rate */}
+              <SimpleGrid columns={3} spacing={8}>
+                <VStack align="center" spacing={1}>
+                  <Text fontSize="sm" color={mutedTextColor}>Strategy</Text>
+                  <Text fontSize="lg" color={textColor}>NASO-CULO</Text>
+                </VStack>
+
+                <VStack align="center" spacing={1}>
+                  <Text fontSize="sm" color={mutedTextColor}>Profit Share</Text>
+                  <Text fontSize="lg" color={textColor}>10%</Text>
+                </VStack>
+
+                <VStack align="center" spacing={1}>
+                  <Text fontSize="sm" color={mutedTextColor}>Win Rate</Text>
+                  <Text fontSize="lg" color="green.400">93%</Text>
+                </VStack>
+              </SimpleGrid>
+            </VStack>
+          </Flex>
+        </CardBody>
+      </Card>
     </VStack>
   );
 };

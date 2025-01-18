@@ -1,4 +1,4 @@
-import { Box, Container, Heading, useColorModeValue } from '@chakra-ui/react'
+import { Box, Container, Heading, useColorModeValue, Text, HStack, Icon } from '@chakra-ui/react'
 import TradingDashboard from './pages/TradingDashboard'
 
 function App() {
@@ -11,20 +11,38 @@ function App() {
     <Box
       minH="100vh"
       bgGradient={bgGradient}
-      py={8}
+      py={4}
       backgroundAttachment="fixed"
     >
-      <Container maxW="container.xl">
-        <Heading 
-          mb={8} 
-          textAlign="center"
-          bgGradient="linear(to-r, cyan.400, blue.500, purple.600)"
-          bgClip="text"
-          fontSize={{ base: "2xl", md: "4xl" }}
-          fontWeight="extrabold"
+      <Container maxW="container.xl" px={4}>
+        <Box 
+          mb={6} 
+          p={4}
+          borderRadius="xl"
+          bg="blackAlpha.300"
+          backdropFilter="blur(10px)"
+          borderWidth="1px"
+          borderColor="whiteAlpha.200"
         >
-          LTC-USDT Trading Bot
-        </Heading>
+          <HStack spacing={3} justify="center">
+            <Heading 
+              textAlign="center"
+              bgGradient="linear(to-r, cyan.400, blue.500, purple.600)"
+              bgClip="text"
+              fontSize={{ base: "2xl", md: "3xl" }}
+              fontWeight="extrabold"
+            >
+              LTCUSDT
+            </Heading>
+            <Text
+              fontSize={{ base: "lg", md: "xl" }}
+              fontWeight="medium"
+              color="gray.400"
+            >
+              Copy Trading
+            </Text>
+          </HStack>
+        </Box>
         <TradingDashboard />
       </Container>
     </Box>
