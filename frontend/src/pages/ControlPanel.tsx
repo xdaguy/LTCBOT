@@ -31,6 +31,13 @@ import {
   NumberInputStepper,
   NumberIncrementStepper,
   NumberDecrementStepper,
+  Modal,
+  ModalOverlay,
+  ModalContent,
+  ModalHeader,
+  ModalBody,
+  ModalCloseButton,
+  useDisclosure,
 } from '@chakra-ui/react';
 
 interface AccountInfo {
@@ -55,6 +62,16 @@ interface OrderFormState {
   price: string;
 }
 
+interface TradeLog {
+  timestamp: string;
+  type: string;
+  side: string;
+  quantity: number;
+  price?: number;
+  status: 'success' | 'error';
+  message: string;
+}
+
 export default function ControlPanel() {
   const [accountInfo, setAccountInfo] = useState<AccountInfo | null>(null);
   const [positions, setPositions] = useState<Position[]>([]);
@@ -68,6 +85,8 @@ export default function ControlPanel() {
   });
   const [isPlacingOrder, setIsPlacingOrder] = useState(false);
   const toast = useToast();
+  const [tradeLogs, setTradeLogs] = useState<TradeLog[]>([]);
+  const { isOpen, onOpen, onClose } = useDisclosure();
 
   // WebSocket connection for real-time price updates
   useEffect(() => {
@@ -112,6 +131,23 @@ export default function ControlPanel() {
     const interval = setInterval(fetchData, 5000); // Update account and positions every 5 seconds
     return () => clearInterval(interval);
   }, []);
+
+  const fetchTradeLogs = async () => {
+    try {
+      const response = await fetch('http://localhost:8000/trade-logs');
+      const data = await response.json();
+      setTradeLogs(data);
+    } catch (error) {
+      console.error('Error fetching trade logs:', error);
+      toast({
+        title: 'Error',
+        description: 'Failed to fetch trade logs',
+        status: 'error',
+        duration: 3000,
+        isClosable: true,
+      });
+    }
+  };
 
   const handlePlaceOrder = async () => {
     if (!orderForm.quantity) {
@@ -172,6 +208,9 @@ export default function ControlPanel() {
         price: ''
       }));
 
+      // Refresh trade logs after successful order
+      fetchTradeLogs();
+
     } catch (error) {
       console.error('Order error:', error);
       toast({
@@ -188,7 +227,19 @@ export default function ControlPanel() {
 
   return (
     <VStack spacing={6} align="stretch" p={6} minH="100vh" bg="gray.900">
-      <Heading color="white" mb={4}>Control Panel</Heading>
+      <HStack justify="space-between" mb={4}>
+        <Heading color="white">Control Panel</Heading>
+        <Button
+          onClick={() => {
+            fetchTradeLogs();
+            onOpen();
+          }}
+          colorScheme="blue"
+          size="md"
+        >
+          Trade Log
+        </Button>
+      </HStack>
       
       {/* Account Overview */}
       <SimpleGrid columns={{ base: 1, md: 4 }} spacing={6}>
@@ -381,6 +432,58 @@ export default function ControlPanel() {
           </Table>
         </Box>
       </Card>
+
+      {/* Trade Log Modal */}
+      <Modal isOpen={isOpen} onClose={onClose} size="6xl">
+        <ModalOverlay />
+        <ModalContent bg="gray.800" color="white" maxW="90vw">
+          <ModalHeader>Trade Log</ModalHeader>
+          <ModalCloseButton />
+          <ModalBody pb={6}>
+            <Box overflowX="auto">
+              <Table variant="simple" size="sm">
+                <Thead>
+                  <Tr>
+                    <Th color="gray.400" width="180px">Time</Th>
+                    <Th color="gray.400" width="100px">Type</Th>
+                    <Th color="gray.400" width="100px">Side</Th>
+                    <Th color="gray.400" width="100px">Quantity</Th>
+                    <Th color="gray.400" width="100px">Price</Th>
+                    <Th color="gray.400" width="100px">Status</Th>
+                    <Th color="gray.400">Message</Th>
+                  </Tr>
+                </Thead>
+                <Tbody>
+                  {tradeLogs.map((log, index) => (
+                    <Tr key={index}>
+                      <Td width="180px">{new Date(log.timestamp).toLocaleString()}</Td>
+                      <Td width="100px">{log.type}</Td>
+                      <Td width="100px">
+                        <Badge colorScheme={log.side === 'BUY' ? 'green' : 'red'}>
+                          {log.side}
+                        </Badge>
+                      </Td>
+                      <Td width="100px" isNumeric>{log.quantity}</Td>
+                      <Td width="100px" isNumeric>{log.price || '-'}</Td>
+                      <Td width="100px">
+                        <Badge colorScheme={log.status === 'success' ? 'green' : 'red'}>
+                          {log.status}
+                        </Badge>
+                      </Td>
+                      <Td>{log.message}</Td>
+                    </Tr>
+                  ))}
+                  {tradeLogs.length === 0 && (
+                    <Tr>
+                      <Td colSpan={7} textAlign="center">No trade logs available</Td>
+                    </Tr>
+                  )}
+                </Tbody>
+              </Table>
+            </Box>
+          </ModalBody>
+        </ModalContent>
+      </Modal>
     </VStack>
   );
 } 

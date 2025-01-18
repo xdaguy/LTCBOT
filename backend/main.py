@@ -8,6 +8,8 @@ from app.config import settings
 from binance.enums import *
 import asyncio
 import logging
+from datetime import datetime
+from typing import List, Optional
 
 # Configure logging
 logging.basicConfig(
@@ -28,20 +30,120 @@ app = FastAPI(title="LTC Trading Bot")
 # Configure CORS for frontend
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # In production, replace with your frontend URL
+    allow_origins=["*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
+# Store trade logs in memory
+trade_logs = []
+
 # Store background tasks
 background_tasks = set()
 
-class TradeRequest(BaseModel):
-    side: str
+class TradeLog(BaseModel):
+    timestamp: str
     type: str
+    side: str
     quantity: float
-    price: float | None = None  # Optional for LIMIT orders
+    price: Optional[float] = None
+    status: str
+    message: str
+
+def add_trade_log(type: str, side: str, quantity: float, price: Optional[float], status: str, message: str):
+    """Add a new trade log entry"""
+    trade_log = TradeLog(
+        timestamp=datetime.now().isoformat(),
+        type=type,
+        side=side,
+        quantity=quantity,
+        price=price,
+        status=status,
+        message=message
+    )
+    trade_logs.append(trade_log)
+    # Keep only the last 100 logs
+    if len(trade_logs) > 100:
+        trade_logs.pop(0)
+    return trade_log
+
+@app.get("/trade-logs", response_model=List[TradeLog])
+async def get_trade_logs():
+    """Get all trade logs"""
+    return list(reversed(trade_logs))  # Return most recent first
+
+@app.post("/trade")
+async def execute_trade(trade_request: dict):
+    """Execute a trade based on the request"""
+    try:
+        side = trade_request.get("side", "").upper()
+        order_type = trade_request.get("type", "MARKET").upper()
+        quantity = float(trade_request.get("quantity", 0))
+        price = float(trade_request.get("price", 0)) if "price" in trade_request else None
+
+        # Validate required fields
+        if not side or side not in ["BUY", "SELL"]:
+            raise HTTPException(status_code=400, detail="Invalid side. Must be BUY or SELL")
+        if not quantity or quantity <= 0:
+            raise HTTPException(status_code=400, detail="Invalid quantity. Must be greater than 0")
+        if order_type not in ["MARKET", "LIMIT"]:
+            raise HTTPException(status_code=400, detail="Invalid order type. Must be MARKET or LIMIT")
+        if order_type == "LIMIT" and (not price or price <= 0):
+            raise HTTPException(status_code=400, detail="Price is required for LIMIT orders and must be greater than 0")
+
+        # Place the order
+        result = binance_client.place_order(side=side, quantity=quantity, order_type=order_type, price=price)
+        
+        if result.get("status") == "error":
+            # Log failed trade
+            add_trade_log(
+                type=order_type,
+                side=side,
+                quantity=quantity,
+                price=price,
+                status="error",
+                message=result.get("message", "Unknown error")
+            )
+            raise HTTPException(status_code=400, detail=result.get("message", "Unknown error placing order"))
+        
+        # Log successful trade
+        add_trade_log(
+            type=order_type,
+            side=side,
+            quantity=quantity,
+            price=price,
+            status="success",
+            message=result.get("message", f"Successfully placed {order_type} {side} order")
+        )
+            
+        return result
+        
+    except HTTPException as he:
+        raise he
+    except ValueError as ve:
+        # Log validation error
+        add_trade_log(
+            type=order_type if 'order_type' in locals() else "UNKNOWN",
+            side=side if 'side' in locals() else "UNKNOWN",
+            quantity=quantity if 'quantity' in locals() else 0,
+            price=price if 'price' in locals() else None,
+            status="error",
+            message=str(ve)
+        )
+        raise HTTPException(status_code=400, detail=str(ve))
+    except Exception as e:
+        # Log unexpected error
+        add_trade_log(
+            type=order_type if 'order_type' in locals() else "UNKNOWN",
+            side=side if 'side' in locals() else "UNKNOWN",
+            quantity=quantity if 'quantity' in locals() else 0,
+            price=price if 'price' in locals() else None,
+            status="error",
+            message=f"Unexpected error: {str(e)}"
+        )
+        logger.error(f"Error executing trade: {str(e)}")
+        raise HTTPException(status_code=500, detail="Internal server error executing trade")
 
 @app.on_event("startup")
 async def startup_event():
@@ -125,41 +227,6 @@ async def get_trading_signal():
     if not signal:
         raise HTTPException(status_code=500, detail="Failed to generate trading signal")
     return signal
-
-@app.post("/trade")
-async def execute_trade(trade_request: dict):
-    """Execute a trade based on the request"""
-    try:
-        side = trade_request.get("side", "").upper()
-        order_type = trade_request.get("type", "MARKET").upper()
-        quantity = float(trade_request.get("quantity", 0))
-        price = float(trade_request.get("price", 0)) if "price" in trade_request else None
-
-        # Validate required fields
-        if not side or side not in ["BUY", "SELL"]:
-            raise HTTPException(status_code=400, detail="Invalid side. Must be BUY or SELL")
-        if not quantity or quantity <= 0:
-            raise HTTPException(status_code=400, detail="Invalid quantity. Must be greater than 0")
-        if order_type not in ["MARKET", "LIMIT"]:
-            raise HTTPException(status_code=400, detail="Invalid order type. Must be MARKET or LIMIT")
-        if order_type == "LIMIT" and (not price or price <= 0):
-            raise HTTPException(status_code=400, detail="Price is required for LIMIT orders and must be greater than 0")
-
-        # Place the order
-        result = binance_client.place_order(side=side, quantity=quantity, order_type=order_type, price=price)
-        
-        if result.get("status") == "error":
-            raise HTTPException(status_code=400, detail=result.get("message", "Unknown error placing order"))
-            
-        return result
-        
-    except HTTPException as he:
-        raise he
-    except ValueError as ve:
-        raise HTTPException(status_code=400, detail=str(ve))
-    except Exception as e:
-        logger.error(f"Error executing trade: {str(e)}")
-        raise HTTPException(status_code=500, detail="Internal server error executing trade")
 
 @app.post("/autotrading/start")
 async def start_automated_trading():
