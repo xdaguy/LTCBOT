@@ -11,10 +11,13 @@ import {
   CardBody,
   Text,
   useColorModeValue,
-  VStack
+  VStack,
+  HStack,
+  SimpleGrid
 } from '@chakra-ui/react'
 import axios from 'axios'
 import PriceChart from '../components/PriceChart'
+import { useEffect, useState } from 'react'
 
 interface PriceData {
   price: number
@@ -29,164 +32,70 @@ interface PriceData {
     time: string
     value: number
   }>
+  chart_data_1m?: Array<{
+    time: string
+    value: number
+  }>
 }
 
-function TradingDashboard() {
-  const cardBg = useColorModeValue('gray.800', 'gray.800')
-  const borderColor = useColorModeValue('blue.400', 'blue.400')
+const TradingDashboard = () => {
+  const [price, setPrice] = useState<number | null>(null);
+  const [signal, setSignal] = useState<string | null>(null);
+  const [chartData15m, setChartData15m] = useState<any[]>([]);
+  const [chartData1h, setChartData1h] = useState<any[]>([]);
+  const [chartData1m, setChartData1m] = useState<any[]>([]);
 
-  const { data, isLoading, error } = useQuery<PriceData>(
-    'price',
-    async () => {
+  useEffect(() => {
+    const fetchData = async () => {
       try {
-        const response = await axios.get('http://localhost:8000/price')
-        console.log('15m Chart Data:', response.data.chart_data_15m)
-        console.log('1h Chart Data:', response.data.chart_data_1h)
-        return response.data
-      } catch (err) {
-        console.error('API Error:', err)
-        throw err
+        const response = await axios.get('http://localhost:8000/price');
+        console.log('API Response:', response.data);
+        setPrice(response.data.price);
+        setSignal(response.data.signal);
+        setChartData15m(response.data.chart_data_15m || []);
+        setChartData1h(response.data.chart_data_1h || []);
+        setChartData1m(response.data.chart_data_1m || []);
+      } catch (error) {
+        console.error('Error fetching data:', error);
       }
-    },
-    {
-      refetchInterval: 1000,
-      staleTime: 500,
-    }
-  )
+    };
 
-  if (isLoading) return (
-    <Box textAlign="center" py={10}>
-      <Text fontSize="xl">Loading market data...</Text>
-    </Box>
-  )
-  
-  if (error) return (
-    <Box textAlign="center" py={10} color="red.400">
-      <Text fontSize="xl">Error fetching market data</Text>
-    </Box>
-  )
+    fetchData();
+    const interval = setInterval(fetchData, 5000);
+    return () => clearInterval(interval);
+  }, []);
 
   return (
-    <VStack spacing={8}>
-      <Grid 
-        templateColumns={{ base: "1fr", md: "repeat(3, 1fr)" }} 
-        gap={6}
-        w="full"
-      >
-        <GridItem>
-          <Card 
-            bg={cardBg} 
-            borderWidth="1px"
-            borderColor={borderColor}
-            boxShadow="xl"
-          >
-            <CardBody>
-              <Stat>
-                <StatLabel fontSize="lg" color="gray.400">Current LTC Price</StatLabel>
-                <StatNumber 
-                  fontSize="3xl" 
-                  bgGradient="linear(to-r, cyan.400, blue.500)"
-                  bgClip="text"
-                >
-                  ${data?.price.toFixed(2)}
-                </StatNumber>
-                <StatHelpText color="gray.500">Live updates</StatHelpText>
-              </Stat>
-            </CardBody>
-          </Card>
-        </GridItem>
-        
-        <GridItem>
-          <Card 
-            bg={cardBg}
-            borderWidth="1px"
-            borderColor={borderColor}
-            boxShadow="xl"
-          >
-            <CardBody>
-              <Stat>
-                <StatLabel fontSize="lg" color="gray.400">Trading Signal</StatLabel>
-                <StatNumber 
-                  fontSize="3xl"
-                  color={
-                    data?.signal === 'buy' 
-                      ? 'green.400' 
-                      : data?.signal === 'sell' 
-                      ? 'red.400' 
-                      : 'gray.400'
-                  }
-                >
-                  {data?.signal?.toUpperCase() || 'HOLD'}
-                </StatNumber>
-                <StatHelpText color="gray.500">Based on EMA crossover</StatHelpText>
-              </Stat>
-            </CardBody>
-          </Card>
-        </GridItem>
+    <VStack spacing={4} align="stretch" p={4}>
+      <HStack justify="space-between" align="center">
+        <Box>
+          <Text fontSize="lg" fontWeight="bold">LTC-USDT Price</Text>
+          <Text fontSize="3xl">${price?.toFixed(2) || '-.--'}</Text>
+        </Box>
+        <Box>
+          <Text fontSize="lg" fontWeight="bold">Signal</Text>
+          <Text fontSize="xl" color={signal === 'BUY' ? 'green.500' : signal === 'SELL' ? 'red.500' : 'gray.500'}>
+            {signal || 'NEUTRAL'}
+          </Text>
+        </Box>
+      </HStack>
 
-        <GridItem>
-          <Card 
-            bg={cardBg}
-            borderWidth="1px"
-            borderColor={borderColor}
-            boxShadow="xl"
-          >
-            <CardBody>
-              <Stat>
-                <StatLabel fontSize="lg" color="gray.400">EMA Indicators</StatLabel>
-                <StatNumber fontSize="2xl">
-                  <Text as="span" color="blue.400">{data?.ema_short?.toFixed(2)}</Text>
-                  <Text as="span" color="gray.500"> / </Text>
-                  <Text as="span" color="purple.400">{data?.ema_long?.toFixed(2)}</Text>
-                </StatNumber>
-                <StatHelpText color="gray.500">Short/Long EMA</StatHelpText>
-              </Stat>
-            </CardBody>
-          </Card>
-        </GridItem>
-      </Grid>
+      <SimpleGrid columns={1} spacing={4}>
+        <Box>
+          <PriceChart data={chartData1m} interval="1m" />
+        </Box>
+      </SimpleGrid>
 
-      <Grid 
-        templateColumns={{ base: "1fr", lg: "repeat(2, 1fr)" }} 
-        gap={6}
-        w="full"
-      >
-        <GridItem>
-          <Card 
-            bg={cardBg}
-            borderWidth="1px"
-            borderColor={borderColor}
-            boxShadow="xl"
-            p={4}
-          >
-            {data?.chart_data_15m && (
-              <PriceChart 
-                data={data.chart_data_15m} 
-                interval="15 Minutes"
-              />
-            )}
-          </Card>
-        </GridItem>
-
-        <GridItem>
-          <Card 
-            bg={cardBg}
-            borderWidth="1px"
-            borderColor={borderColor}
-            boxShadow="xl"
-            p={4}
-          >
-            {data?.chart_data_1h && (
-              <PriceChart 
-                data={data.chart_data_1h} 
-                interval="1 Hour"
-              />
-            )}
-          </Card>
-        </GridItem>
-      </Grid>
+      <SimpleGrid columns={2} spacing={4}>
+        <Box>
+          <PriceChart data={chartData15m} interval="15m" />
+        </Box>
+        <Box>
+          <PriceChart data={chartData1h} interval="1h" />
+        </Box>
+      </SimpleGrid>
     </VStack>
-  )
-}
+  );
+};
 
 export default TradingDashboard 

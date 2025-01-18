@@ -63,10 +63,12 @@ async def get_price():
         if not price:
             raise HTTPException(status_code=500, detail="Failed to fetch price")
         
-        # Get historical data for both timeframes
-        klines_15m = binance_client.get_historical_klines(interval="15m", limit=96)  # Last 24 hours
-        klines_1h = binance_client.get_historical_klines(interval="1h", limit=168)   # Last 7 days
+        # Get historical data for different timeframes
+        klines_1m = binance_client.get_historical_klines(interval="1m", limit=30)   # Last 30 minutes
+        klines_15m = binance_client.get_historical_klines(interval="15m", limit=48)  # Last 12 hours
+        klines_1h = binance_client.get_historical_klines(interval="1h", limit=48)    # Last 2 days
         
+        logger.info(f"1m klines: {len(klines_1m) if klines_1m else 0} entries")
         logger.info(f"15m klines: {len(klines_15m) if klines_15m else 0} entries")
         logger.info(f"1h klines: {len(klines_1h) if klines_1h else 0} entries")
         
@@ -78,6 +80,7 @@ async def get_price():
             "signal": signal.get("signal") if signal else None,
             "ema_short": signal.get("ema_short") if signal else None,
             "ema_long": signal.get("ema_long") if signal else None,
+            "chart_data_1m": klines_1m if klines_1m else [],
             "chart_data_15m": klines_15m if klines_15m else [],
             "chart_data_1h": klines_1h if klines_1h else []
         }
