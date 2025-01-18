@@ -9,9 +9,9 @@ logger = logging.getLogger(__name__)
 
 class BinanceClient:
     def __init__(self):
-        self.client = Client(settings.binance_api_key, settings.binance_api_secret)
+        self.client = Client(settings.api_key, settings.api_secret)
         self.symbol = settings.symbol
-        self.test_mode = settings.test_mode
+        self.test_mode = settings.testnet
         
     def get_symbol_info(self):
         """Get symbol information"""

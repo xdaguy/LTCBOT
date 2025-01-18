@@ -1,22 +1,27 @@
-from pydantic import BaseModel
-from dotenv import load_dotenv
-import os
+from pydantic_settings import BaseSettings
 
-load_dotenv()
-
-class Settings(BaseModel):
-    # Binance API Configuration
-    binance_api_key: str = os.getenv("BINANCE_API_KEY", "")
-    binance_api_secret: str = os.getenv("BINANCE_API_SECRET", "")
-    
-    # Trading Configuration
+class Settings(BaseSettings):
     symbol: str = "LTCUSDT"
-    test_mode: bool = True  # Set to False for real trading
+    ws_url: str = "wss://fstream.binance.com/ws"
+    binance_api_key: str = ""
+    binance_api_secret: str = ""
+    testnet: bool = False
     
-    # Database Configuration
-    database_url: str = "sqlite:///./trades.db"
-    
-    # WebSocket Configuration
-    ws_url: str = "wss://fstream.binance.com/ws"  # Binance Futures WebSocket URL
+    # Supabase settings
+    supabase_url: str = ""
+    supabase_key: str = ""
+
+    # For backward compatibility
+    @property
+    def api_key(self) -> str:
+        return self.binance_api_key
+
+    @property
+    def api_secret(self) -> str:
+        return self.binance_api_secret
+
+    class Config:
+        env_file = ".env"
+        env_file_encoding = "utf-8"
 
 settings = Settings() 

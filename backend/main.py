@@ -5,6 +5,7 @@ from app.binance_client import binance_client
 from app.strategy import strategy
 from app.websocket import binance_ws
 from app.config import settings
+from app.db import save_trade_log, get_trade_logs
 from binance.enums import *
 import asyncio
 import logging
@@ -51,27 +52,27 @@ class TradeLog(BaseModel):
     status: str
     message: str
 
-def add_trade_log(type: str, side: str, quantity: float, price: Optional[float], status: str, message: str):
+async def add_trade_log(type: str, side: str, quantity: float, price: Optional[float], status: str, message: str):
     """Add a new trade log entry"""
-    trade_log = TradeLog(
-        timestamp=datetime.now().isoformat(),
-        type=type,
-        side=side,
-        quantity=quantity,
-        price=price,
-        status=status,
-        message=message
-    )
-    trade_logs.append(trade_log)
-    # Keep only the last 100 logs
-    if len(trade_logs) > 100:
-        trade_logs.pop(0)
-    return trade_log
+    trade_log = {
+        "timestamp": datetime.now().isoformat(),
+        "type": type,
+        "side": side,
+        "quantity": quantity,
+        "price": price,
+        "status": status,
+        "message": message
+    }
+    
+    # Save to Supabase
+    await save_trade_log(trade_log)
+    return TradeLog(**trade_log)
 
 @app.get("/trade-logs", response_model=List[TradeLog])
-async def get_trade_logs():
-    """Get all trade logs"""
-    return list(reversed(trade_logs))  # Return most recent first
+async def get_trade_history():
+    """Get all trade logs from Supabase"""
+    logs = await get_trade_logs(limit=100)
+    return [TradeLog(**log) for log in logs]
 
 @app.post("/trade")
 async def execute_trade(trade_request: dict):
@@ -97,7 +98,7 @@ async def execute_trade(trade_request: dict):
         
         if result.get("status") == "error":
             # Log failed trade
-            add_trade_log(
+            await add_trade_log(
                 type=order_type,
                 side=side,
                 quantity=quantity,
@@ -108,7 +109,7 @@ async def execute_trade(trade_request: dict):
             raise HTTPException(status_code=400, detail=result.get("message", "Unknown error placing order"))
         
         # Log successful trade
-        add_trade_log(
+        await add_trade_log(
             type=order_type,
             side=side,
             quantity=quantity,
@@ -123,7 +124,7 @@ async def execute_trade(trade_request: dict):
         raise he
     except ValueError as ve:
         # Log validation error
-        add_trade_log(
+        await add_trade_log(
             type=order_type if 'order_type' in locals() else "UNKNOWN",
             side=side if 'side' in locals() else "UNKNOWN",
             quantity=quantity if 'quantity' in locals() else 0,
@@ -134,7 +135,7 @@ async def execute_trade(trade_request: dict):
         raise HTTPException(status_code=400, detail=str(ve))
     except Exception as e:
         # Log unexpected error
-        add_trade_log(
+        await add_trade_log(
             type=order_type if 'order_type' in locals() else "UNKNOWN",
             side=side if 'side' in locals() else "UNKNOWN",
             quantity=quantity if 'quantity' in locals() else 0,
