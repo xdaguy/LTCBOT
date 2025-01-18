@@ -157,11 +157,56 @@ uvicorn main:app --reload
 # Open a new terminal
 cd frontend
 
-# Install dependencies
+# Make sure you have the correct Node.js version (v18+)
+node -v
+
+# Create package.json with exact versions
+echo '{
+  "name": "frontend",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc && vite build",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "@chakra-ui/react": "2.8.0",
+    "@emotion/react": "11.11.0",
+    "@emotion/styled": "11.11.0",
+    "@types/react": "18.2.0",
+    "@types/react-dom": "18.2.0",
+    "@types/react-router-dom": "5.3.3",
+    "axios": "1.6.0",
+    "framer-motion": "10.16.0",
+    "react": "18.2.0",
+    "react-dom": "18.2.0",
+    "react-query": "3.39.0",
+    "react-router-dom": "7.1.3"
+  },
+  "devDependencies": {
+    "@types/node": "20.0.0",
+    "@vitejs/plugin-react": "4.0.0",
+    "typescript": "5.0.0",
+    "vite": "4.0.0"
+  }
+}' > package.json
+
+# If needed, clear npm cache and remove old node_modules
+rm -r -force node_modules
+rm package-lock.json
+npm cache clean --force
+
+# Install all dependencies at once
 npm install
 
+# Create or update .env file in frontend directory
+echo "VITE_API_URL=http://localhost:8000
+VITE_WS_URL=ws://localhost:8000/ws" > .env
+
 # Start the development server
-npm start
+npm run dev
 ```
 
 ### Verification Steps
@@ -171,7 +216,7 @@ npm start
    - Verify WebSocket connection in the console
 
 2. Frontend Verification:
-   - Open http://localhost:3000 in your browser
+   - Open http://localhost:5173 in your browser
    - Check if the trading interface loads
    - Verify real-time price updates
    - Test order placement in TEST_MODE
