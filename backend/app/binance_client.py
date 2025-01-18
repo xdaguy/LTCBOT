@@ -24,31 +24,112 @@ class BinanceClient:
     def get_account_balance(self):
         """Get futures account balance"""
         try:
-            return self.client.futures_account_balance()
+            # Get futures account information
+            account = self.client.futures_account()
+            if not account:
+                raise ValueError("No account information received")
+
+            # Get USDT balance from futures wallet
+            balances = account.get('assets', [])
+            usdt_balance = next((b for b in balances if b['asset'] == 'USDT'), None)
+            
+            if not usdt_balance:
+                raise ValueError("No USDT balance found in futures wallet")
+                
+            return {
+                "status": "success",
+                "balance": float(usdt_balance['walletBalance']),
+                "availableBalance": float(usdt_balance['availableBalance']),
+                "unrealizedProfit": float(account.get('totalUnrealizedProfit', 0))
+            }
+        except ValueError as ve:
+            logger.error(f"Balance error: {ve}")
+            return {
+                "status": "error",
+                "message": str(ve),
+                "error_type": "validation_error"
+            }
         except Exception as e:
             logger.error(f"Error getting account balance: {e}")
-            return None
+            return {
+                "status": "error",
+                "message": f"Failed to fetch balance: {str(e)}",
+                "error_type": "binance_api_error"
+            }
 
-    def place_order(self, side: str, quantity: float, order_type: str = ORDER_TYPE_MARKET):
+    def place_order(self, side: str, quantity: float, order_type: str = ORDER_TYPE_MARKET, price: float = None):
         """Place a futures order"""
         try:
+            # Check account balance first
+            account = self.client.futures_account()
+            available_balance = float(account['availableBalance'])
+            
+            if available_balance <= 0:
+                raise ValueError(f"Insufficient balance. Available: {available_balance} USDT")
+            
+            # Get current position to check if we can open new one
+            position = self.get_position_info()
+            if position and float(position['positionAmt']) != 0:
+                raise ValueError(f"Active position exists: {position['positionAmt']} {self.symbol}")
+
+            # Prepare order parameters
+            order_params = {
+                "symbol": self.symbol,
+                "side": side,
+                "type": order_type,
+                "quantity": quantity
+            }
+            
+            # Add price for LIMIT orders
+            if order_type == ORDER_TYPE_LIMIT and price is not None:
+                order_params["price"] = price
+                order_params["timeInForce"] = TIME_IN_FORCE_GTC  # Good Till Cancel
+
             if self.test_mode:
-                return self.client.futures_create_test_order(
-                    symbol=self.symbol,
-                    side=side,
-                    type=order_type,
-                    quantity=quantity
-                )
+                logger.info(f"Test Mode: Would place {order_type} {side} order for {quantity} {self.symbol}")
+                return self.client.futures_create_test_order(**order_params)
             else:
-                return self.client.futures_create_order(
-                    symbol=self.symbol,
-                    side=side,
-                    type=order_type,
-                    quantity=quantity
-                )
+                result = self.client.futures_create_order(**order_params)
+                order_desc = f"{order_type} {side} order for {quantity} {self.symbol}"
+                if order_type == ORDER_TYPE_LIMIT:
+                    order_desc += f" at {price} USDT"
+                logger.info(f"Order placed successfully: {order_desc}")
+                return {
+                    "status": "success",
+                    "message": f"Order placed successfully: {order_desc}",
+                    "order": result
+                }
+                
+        except ValueError as ve:
+            error_msg = str(ve)
+            logger.error(f"Validation error placing order: {error_msg}")
+            return {
+                "status": "error",
+                "message": error_msg,
+                "error_type": "validation_error"
+            }
         except Exception as e:
-            logger.error(f"Error placing order: {e}")
-            return None
+            error_msg = str(e)
+            if "insufficient balance" in error_msg.lower():
+                msg = "Insufficient balance to place order"
+            elif "quantity greater than max" in error_msg.lower():
+                msg = "Order quantity exceeds maximum allowed"
+            elif "quantity less than min" in error_msg.lower():
+                msg = "Order quantity below minimum allowed"
+            elif "reduce only order" in error_msg.lower():
+                msg = "Cannot open new position in reduce-only mode"
+            elif "invalid price" in error_msg.lower():
+                msg = "Invalid price for limit order"
+            else:
+                msg = f"Error placing order: {error_msg}"
+            
+            logger.error(msg)
+            return {
+                "status": "error",
+                "message": msg,
+                "error_type": "binance_api_error",
+                "details": error_msg
+            }
 
     def get_position_info(self):
         """Get current position information"""
@@ -62,23 +143,22 @@ class BinanceClient:
     def get_mark_price(self):
         """Get current mark price"""
         try:
-            mark_price = self.client.futures_mark_price(symbol=self.symbol)
-            return float(mark_price['markPrice'])
+            ticker = self.client.futures_mark_price(symbol=self.symbol)
+            return float(ticker['markPrice'])
         except Exception as e:
             logger.error(f"Error getting mark price: {e}")
             return None
 
-    def get_historical_klines(self, interval: str, limit: int = 100):
-        """Get historical klines/candlestick data"""
+    def get_historical_klines(self, interval="15m", limit=100):
+        """Fetch historical klines/candlestick data"""
         try:
-            logger.info(f"Fetching klines for {self.symbol} with interval {interval}")
             klines = self.client.futures_klines(
                 symbol=self.symbol,
                 interval=interval,
                 limit=limit
             )
-            logger.info(f"Received {len(klines)} klines")
             
+            # Format klines for charting
             formatted_klines = [
                 {
                     'time': datetime.fromtimestamp(k[0] / 1000).strftime('%Y-%m-%d %H:%M:%S'),
@@ -86,10 +166,9 @@ class BinanceClient:
                 }
                 for k in klines
             ]
-            logger.info(f"Formatted klines: {formatted_klines[:2]}...")  # Log first two entries
             return formatted_klines
         except Exception as e:
-            logger.error(f"Error getting historical klines: {e}")
+            logger.error(f"Error fetching historical klines: {e}")
             return None
 
 binance_client = BinanceClient() 

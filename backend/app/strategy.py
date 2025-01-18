@@ -78,9 +78,6 @@ class NasoCuloStrategy:
             prev = df.iloc[-2]
             prev2 = df.iloc[-3]  # Add one more candle for confirmation
 
-            # Log values for debugging
-            logger.info(f"Latest values - RSI: {latest['rsi']:.2f}, EMA Short: {latest['ema_short']:.2f}, EMA Long: {latest['ema_long']:.2f}")
-
             # NASO-CULO Strategy Logic
             # 1. EMA Trend and Crossover
             ema_trend = 'BULLISH' if latest['ema_short'] > latest['ema_long'] else 'BEARISH'
@@ -126,7 +123,6 @@ class NasoCuloStrategy:
                     'trend_strength_value': float(trend_strength)
                 }
             }
-            logger.info(f"Response data: {response_data}")
             return response_data
 
         except Exception as e:

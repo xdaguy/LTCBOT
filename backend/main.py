@@ -1,5 +1,6 @@
 from fastapi import FastAPI, HTTPException, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
+from pydantic import BaseModel
 from app.binance_client import binance_client
 from app.strategy import strategy
 from app.websocket import binance_ws
@@ -7,6 +8,18 @@ from app.config import settings
 from binance.enums import *
 import asyncio
 import logging
+
+# Configure logging
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(levelname)s - %(message)s',
+    datefmt='%H:%M:%S'
+)
+
+# Reduce noise from third-party libraries
+logging.getLogger('urllib3').setLevel(logging.WARNING)
+logging.getLogger('websockets').setLevel(logging.WARNING)
+logging.getLogger('asyncio').setLevel(logging.WARNING)
 
 logger = logging.getLogger(__name__)
 
@@ -23,6 +36,12 @@ app.add_middleware(
 
 # Store background tasks
 background_tasks = set()
+
+class TradeRequest(BaseModel):
+    side: str
+    type: str
+    quantity: float
+    price: float | None = None  # Optional for LIMIT orders
 
 @app.on_event("startup")
 async def startup_event():
@@ -64,20 +83,18 @@ async def get_price():
             raise HTTPException(status_code=500, detail="Failed to fetch price")
         
         # Get historical data for different timeframes
-        klines_1m = binance_client.get_historical_klines(interval="1m", limit=30)   # Last 30 minutes
-        klines_15m = binance_client.get_historical_klines(interval="15m", limit=48)  # Last 12 hours
-        klines_1h = binance_client.get_historical_klines(interval="1h", limit=48)    # Last 2 days
-        
-        logger.info(f"1m klines: {len(klines_1m) if klines_1m else 0} entries")
-        logger.info(f"15m klines: {len(klines_15m) if klines_15m else 0} entries")
-        logger.info(f"1h klines: {len(klines_1h) if klines_1h else 0} entries")
+        klines_1m = binance_client.get_historical_klines(interval="1m", limit=30)
+        klines_15m = binance_client.get_historical_klines(interval="15m", limit=48)
+        klines_1h = binance_client.get_historical_klines(interval="1h", limit=48)
         
         # Get trading signal and indicators
         signal_data = strategy.get_signal()
         if not signal_data:
             raise HTTPException(status_code=500, detail="Failed to get trading signal")
             
-        logger.info(f"Signal data: {signal_data}")
+        # Only log significant changes in signal or indicators
+        if signal_data.get("signal") != "HOLD":
+            logger.info(f"New trading signal: {signal_data.get('signal')} (RSI: {signal_data.get('rsi', 'N/A'):.2f})")
         
         response_data = {
             "price": price,
@@ -95,7 +112,6 @@ async def get_price():
             "chart_data_1h": klines_1h if klines_1h else []
         }
         
-        logger.info(f"Sending response with RSI: {response_data.get('rsi')}")
         return response_data
         
     except Exception as e:
@@ -111,15 +127,39 @@ async def get_trading_signal():
     return signal
 
 @app.post("/trade")
-async def execute_trade(side: str, quantity: float):
-    """Execute a manual trade"""
-    if side not in ['BUY', 'SELL']:
-        raise HTTPException(status_code=400, detail="Invalid side. Must be 'BUY' or 'SELL'")
-    
-    result = binance_client.place_order(side=side, quantity=quantity)
-    if not result:
-        raise HTTPException(status_code=500, detail="Failed to execute trade")
-    return result
+async def execute_trade(trade_request: dict):
+    """Execute a trade based on the request"""
+    try:
+        side = trade_request.get("side", "").upper()
+        order_type = trade_request.get("type", "MARKET").upper()
+        quantity = float(trade_request.get("quantity", 0))
+        price = float(trade_request.get("price", 0)) if "price" in trade_request else None
+
+        # Validate required fields
+        if not side or side not in ["BUY", "SELL"]:
+            raise HTTPException(status_code=400, detail="Invalid side. Must be BUY or SELL")
+        if not quantity or quantity <= 0:
+            raise HTTPException(status_code=400, detail="Invalid quantity. Must be greater than 0")
+        if order_type not in ["MARKET", "LIMIT"]:
+            raise HTTPException(status_code=400, detail="Invalid order type. Must be MARKET or LIMIT")
+        if order_type == "LIMIT" and (not price or price <= 0):
+            raise HTTPException(status_code=400, detail="Price is required for LIMIT orders and must be greater than 0")
+
+        # Place the order
+        result = binance_client.place_order(side=side, quantity=quantity, order_type=order_type, price=price)
+        
+        if result.get("status") == "error":
+            raise HTTPException(status_code=400, detail=result.get("message", "Unknown error placing order"))
+            
+        return result
+        
+    except HTTPException as he:
+        raise he
+    except ValueError as ve:
+        raise HTTPException(status_code=400, detail=str(ve))
+    except Exception as e:
+        logger.error(f"Error executing trade: {str(e)}")
+        raise HTTPException(status_code=500, detail="Internal server error executing trade")
 
 @app.post("/autotrading/start")
 async def start_automated_trading():
@@ -162,6 +202,38 @@ async def websocket_endpoint(websocket: WebSocket):
     except Exception as e:
         logger.error(f"WebSocket error: {e}")
         binance_ws.active_connections.remove(websocket)
+
+@app.get("/account")
+async def get_account():
+    """Get futures account information"""
+    try:
+        account = binance_client.client.futures_account()
+        if not account:
+            raise HTTPException(status_code=500, detail="Failed to get account information")
+        
+        return account  # Return the full account object
+    except Exception as e:
+        logger.error(f"Error in account endpoint: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/positions")
+async def get_positions():
+    """Get all open positions"""
+    try:
+        positions = binance_client.client.futures_position_information()
+        if not positions:
+            return []
+        
+        # Filter out positions with zero amount
+        active_positions = [
+            pos for pos in positions 
+            if float(pos['positionAmt']) != 0
+        ]
+        
+        return active_positions
+    except Exception as e:
+        logger.error(f"Error in positions endpoint: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
 
 if __name__ == "__main__":
     import uvicorn

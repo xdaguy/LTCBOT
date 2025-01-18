@@ -1,52 +1,30 @@
-import { Box, Container, Heading, useColorModeValue, Text, HStack, Icon } from '@chakra-ui/react'
-import TradingDashboard from './pages/TradingDashboard'
+import { BrowserRouter as Router, Routes, Route, Link } from 'react-router-dom';
+import { ChakraProvider, Box, VStack, Heading, HStack } from '@chakra-ui/react';
+import TradingDashboard from './pages/TradingDashboard';
+import ControlPanel from './pages/ControlPanel';
 
 function App() {
-  const bgGradient = useColorModeValue(
-    'linear(to-br, gray.900, blue.900)',
-    'linear(to-br, gray.900, blue.900)'
-  )
-
   return (
-    <Box
-      minH="100vh"
-      bgGradient={bgGradient}
-      py={4}
-      backgroundAttachment="fixed"
-    >
-      <Container maxW="container.xl" px={4}>
-        <Box 
-          mb={6} 
-          p={4}
-          borderRadius="xl"
-          bg="blackAlpha.300"
-          backdropFilter="blur(10px)"
-          borderWidth="1px"
-          borderColor="whiteAlpha.200"
-        >
-          <HStack spacing={3} justify="center">
-            <Heading 
-              textAlign="center"
-              bgGradient="linear(to-r, cyan.400, blue.500, purple.600)"
-              bgClip="text"
-              fontSize={{ base: "2xl", md: "3xl" }}
-              fontWeight="extrabold"
-            >
-              LTCUSDT
-            </Heading>
-            <Text
-              fontSize={{ base: "lg", md: "xl" }}
-              fontWeight="medium"
-              color="gray.400"
-            >
-              Copy Trading
-            </Text>
-          </HStack>
+    <ChakraProvider>
+      <Router>
+        <Box minH="100vh" bg="gray.900" py={4}>
+          <VStack spacing={6}>
+            {/* Navigation */}
+            <HStack spacing={6} color="white" mb={4}>
+              <Link to="/">Trading Dashboard</Link>
+              <Link to="/cp">Control Panel</Link>
+            </HStack>
+            
+            {/* Routes */}
+            <Routes>
+              <Route path="/" element={<TradingDashboard />} />
+              <Route path="/cp" element={<ControlPanel />} />
+            </Routes>
+          </VStack>
         </Box>
-        <TradingDashboard />
-      </Container>
-    </Box>
-  )
+      </Router>
+    </ChakraProvider>
+  );
 }
 
-export default App
+export default App;
