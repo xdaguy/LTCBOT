@@ -127,16 +127,25 @@ python -m venv venv
 # Install required packages one by one to avoid conflicts
 pip install fastapi==0.104.1
 pip install uvicorn==0.24.0
-pip install python-binance==1.0.19
-pip install python-dotenv==1.0.0
-pip install pandas==2.1.3
-pip install numpy==1.26.2
+pip install python-binance==1.0.27
+pip install python-dotenv==1.0.1
+pip install pandas==2.2.3
+pip install numpy==2.2.1
 pip install ta==0.10.2
 pip install websockets==12.0
-pip install httpx==0.25.2
-pip install python-dateutil==2.8.2
-pip install postgrest==0.13.0
 pip install supabase==1.0.3
+pip install httpx==0.23.3
+pip install python-dateutil==2.9.0.post0
+pip install postgrest==0.10.7
+pip install pydantic==2.10.5
+pip install pydantic-settings==2.7.1
+pip install typing_extensions==4.12.2
+pip install starlette==0.27.0
+pip install anyio==3.7.1
+pip install httpcore==0.16.3
+
+# Optional: Update pip if needed
+python -m pip install --upgrade pip
 
 # Create .env file (copy the above environment variables)
 # Start the backend server
