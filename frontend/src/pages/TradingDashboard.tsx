@@ -181,6 +181,22 @@ const TradingDashboard = () => {
 
   return (
     <VStack spacing={4} align="stretch" p={4} bg="gray.900" minH="100vh">
+      <Box>
+        <HStack spacing={2}>
+          <Text
+            bgGradient="linear(to-r, #00C49F, #00A3FF)"
+            bgClip="text"
+            fontSize="4xl"
+            fontWeight="bold"
+          >
+            LTCUSDT
+          </Text>
+          <Text color="blue.400" fontSize="4xl">
+            Copy Trading
+          </Text>
+        </HStack>
+      </Box>
+
       {/* Price and Signal Section */}
       <SimpleGrid columns={{ base: 1, md: 3 }} spacing={4}>
         <Card bg={cardBg} borderColor={borderColor} borderWidth="1px" boxShadow="lg">
