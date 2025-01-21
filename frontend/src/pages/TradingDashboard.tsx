@@ -180,35 +180,52 @@ const TradingDashboard = () => {
   }, [rsi]);
 
   return (
-    <VStack spacing={4} align="stretch" p={4} bg="gray.900" minH="100vh">
-      <Box>
-        <HStack spacing={2}>
-          <Text
-            bgGradient="linear(to-r, #00C49F, #00A3FF)"
-            bgClip="text"
-            fontSize="4xl"
-            fontWeight="bold"
-          >
-            LTCUSDT
+    <VStack spacing={6} align="stretch" p={6} bg="gray.900" minH="100vh">
+      <Box mb={6}>
+        <VStack spacing={3} align="start">
+          <HStack spacing={4}>
+            <Text
+              color="purple.400"
+              fontSize="3xl"
+              fontWeight="bold"
+            >
+              XDA Ninja
+            </Text>
+            <Badge colorScheme="red" fontSize="lg" px={3} py={1}>
+              LIVE
+            </Badge>
+          </HStack>
+          <HStack spacing={2}>
+            <Text
+              bgGradient="linear(to-r, #00C49F, #00A3FF)"
+              bgClip="text"
+              fontSize="5xl"
+              fontWeight="bold"
+            >
+              LTCUSDT
+            </Text>
+            <Text color="blue.400" fontSize="5xl">
+              Copy Trading
+            </Text>
+          </HStack>
+          <Text color="gray.400" fontSize="lg">
+            24/7 Automated LTC/USDT Futures Trading • Real-time Signals • Live Performance
           </Text>
-          <Text color="blue.400" fontSize="4xl">
-            Copy Trading
-          </Text>
-        </HStack>
+        </VStack>
       </Box>
 
       {/* Price and Signal Section */}
-      <SimpleGrid columns={{ base: 1, md: 3 }} spacing={4}>
+      <SimpleGrid columns={{ base: 1, md: 3 }} spacing={6}>
         <Card bg={cardBg} borderColor={borderColor} borderWidth="1px" boxShadow="lg">
-          <CardBody>
-            <VStack align="start" spacing={1}>
-              <Text fontSize="sm" color={mutedTextColor}>LTC-USDT Price</Text>
-              <HStack spacing={2}>
-                <Text fontSize="2xl" color={textColor}>
+          <CardBody p={6}>
+            <VStack align="start" spacing={2}>
+              <Text fontSize="md" color={mutedTextColor}>LTC-USDT Price</Text>
+              <HStack spacing={3}>
+                <Text fontSize="3xl" color={textColor}>
                   ${typeof price === 'number' ? price.toFixed(2) : '-.--'}
                 </Text>
                 {typeof priceChange === 'number' && (
-                  <Badge colorScheme={priceDirection === 'up' ? 'green' : 'red'}>
+                  <Badge fontSize="xl" p={2} colorScheme={priceDirection === 'up' ? 'green' : 'red'}>
                     {priceChange > 0 ? '+' : ''}{priceChange.toFixed(2)}%
                   </Badge>
                 )}
@@ -218,14 +235,14 @@ const TradingDashboard = () => {
         </Card>
 
         <Card bg={cardBg} borderColor={borderColor} borderWidth="1px" boxShadow="lg">
-          <CardBody>
-            <VStack align="start" spacing={1}>
-              <Text fontSize="sm" color={mutedTextColor}>Trading Signal</Text>
+          <CardBody p={6}>
+            <VStack align="start" spacing={2}>
+              <Text fontSize="md" color={mutedTextColor}>Trading Signal</Text>
               <Badge 
                 colorScheme={signal === 'BUY' ? 'green' : signal === 'SELL' ? 'red' : 'gray'}
-                fontSize="lg"
-                px={3}
-                py={1}
+                fontSize="2xl"
+                px={4}
+                py={2}
               >
                 {signal || 'NEUTRAL'}
               </Badge>
@@ -234,14 +251,16 @@ const TradingDashboard = () => {
         </Card>
 
         <Card bg={cardBg} borderColor={borderColor} borderWidth="1px" boxShadow="lg">
-          <CardBody>
-            <VStack align="start" spacing={1}>
-              <Text fontSize="sm" color={mutedTextColor}>RSI ({indicators?.rsi_period || 14})</Text>
-              <HStack>
-                <Text fontSize="xl" color={rsiColor}>
+          <CardBody p={6}>
+            <VStack align="start" spacing={2}>
+              <Text fontSize="md" color={mutedTextColor}>RSI ({indicators?.rsi_period || 14})</Text>
+              <HStack spacing={3}>
+                <Text fontSize="2xl" color={rsiColor}>
                   {typeof rsi === 'number' ? rsi.toFixed(1) : '-'}
                 </Text>
                 <Badge 
+                  fontSize="xl"
+                  p={2}
                   colorScheme={
                     rsiStatus === 'OVERBOUGHT' ? 'red' : 
                     rsiStatus === 'OVERSOLD' ? 'green' : 
@@ -257,21 +276,21 @@ const TradingDashboard = () => {
       </SimpleGrid>
 
       {/* Indicators Section */}
-      <SimpleGrid columns={{ base: 1, md: 2 }} spacing={4}>
+      <SimpleGrid columns={{ base: 1, md: 2 }} spacing={6}>
         <Card bg={cardBg} borderColor={borderColor} borderWidth="1px" boxShadow="lg">
-          <CardBody>
-            <VStack align="start" spacing={2}>
-              <Text fontSize="sm" color={mutedTextColor}>EMA Indicators ({timeframe})</Text>
-              <HStack spacing={4} divider={<Divider orientation="vertical" borderColor={borderColor} />}>
-                <VStack align="start" spacing={0}>
-                  <Text fontSize="xs" color={mutedTextColor}>EMA ({indicators?.ema_short_period || 9})</Text>
-                  <Text fontSize="lg" color="blue.400">{emaShort?.toFixed(2) || '-'}</Text>
+          <CardBody p={6}>
+            <VStack align="start" spacing={3}>
+              <Text fontSize="md" color={mutedTextColor}>EMA Indicators ({timeframe})</Text>
+              <HStack spacing={6} divider={<Divider orientation="vertical" borderColor={borderColor} />}>
+                <VStack align="start" spacing={1}>
+                  <Text fontSize="sm" color={mutedTextColor}>EMA ({indicators?.ema_short_period || 9})</Text>
+                  <Text fontSize="2xl" color="blue.400">{emaShort?.toFixed(2) || '-'}</Text>
                 </VStack>
-                <VStack align="start" spacing={0}>
-                  <Text fontSize="xs" color={mutedTextColor}>EMA ({indicators?.ema_long_period || 21})</Text>
-                  <Text fontSize="lg" color="purple.400">{emaLong?.toFixed(2) || '-'}</Text>
+                <VStack align="start" spacing={1}>
+                  <Text fontSize="sm" color={mutedTextColor}>EMA ({indicators?.ema_long_period || 21})</Text>
+                  <Text fontSize="2xl" color="purple.400">{emaLong?.toFixed(2) || '-'}</Text>
                 </VStack>
-                <Badge colorScheme={emaTrend === 'BULLISH' ? 'green' : 'red'}>
+                <Badge fontSize="xl" p={2} colorScheme={emaTrend === 'BULLISH' ? 'green' : 'red'}>
                   {emaTrend}
                 </Badge>
               </HStack>
@@ -280,9 +299,9 @@ const TradingDashboard = () => {
         </Card>
 
         <Card bg={cardBg} borderColor={borderColor} borderWidth="1px" boxShadow="lg">
-          <CardBody>
-            <VStack align="start" spacing={2}>
-              <Text fontSize="sm" color={mutedTextColor}>Trend Strength</Text>
+          <CardBody p={6}>
+            <VStack align="start" spacing={3}>
+              <Text fontSize="md" color={mutedTextColor}>Trend Strength</Text>
               <HStack spacing={4}>
                 <Badge 
                   colorScheme={
@@ -290,9 +309,9 @@ const TradingDashboard = () => {
                       ? (trendStrength === 'STRONG' ? 'green' : 'yellow')
                       : (trendStrength === 'STRONG' ? 'red' : 'yellow')
                   }
-                  fontSize="md"
-                  px={3}
-                  py={1}
+                  fontSize="xl"
+                  px={4}
+                  py={2}
                   variant="solid"
                 >
                   {emaTrend === 'BULLISH' 
@@ -307,118 +326,32 @@ const TradingDashboard = () => {
 
       {/* Charts Section */}
       <Card bg={cardBg} borderColor={borderColor} borderWidth="1px" boxShadow="lg">
-        <CardBody pt={2}>
-          <Text fontSize="sm" color={mutedTextColor} mb={4}>1 Minute Chart</Text>
-          <Box bg={cardBg} borderRadius="md" overflow="hidden">
+        <CardBody p={4} pb={2}>
+          <Text fontSize="md" color={mutedTextColor} mb={2}>1 Minute Chart</Text>
+          <Box bg={cardBg} borderRadius="md" overflow="hidden" height="300px">
             <PriceChart data={chartData1m} interval="1m" />
           </Box>
         </CardBody>
       </Card>
 
-      <SimpleGrid columns={2} spacing={4}>
+      <SimpleGrid columns={2} spacing={6}>
         <Card bg={cardBg} borderColor={borderColor} borderWidth="1px" boxShadow="lg">
-          <CardBody pt={2}>
-            <Text fontSize="sm" color={mutedTextColor} mb={4}>15 Minutes Chart</Text>
-            <Box bg={cardBg} borderRadius="md" overflow="hidden">
+          <CardBody p={4} pb={2}>
+            <Text fontSize="md" color={mutedTextColor} mb={2}>15 Minutes Chart</Text>
+            <Box bg={cardBg} borderRadius="md" overflow="hidden" height="300px">
               <PriceChart data={chartData15m} interval="15m" />
             </Box>
           </CardBody>
         </Card>
         <Card bg={cardBg} borderColor={borderColor} borderWidth="1px" boxShadow="lg">
-          <CardBody pt={2}>
-            <Text fontSize="sm" color={mutedTextColor} mb={4}>1 Hour Chart</Text>
-            <Box bg={cardBg} borderRadius="md" overflow="hidden">
+          <CardBody p={4} pb={2}>
+            <Text fontSize="md" color={mutedTextColor} mb={2}>1 Hour Chart</Text>
+            <Box bg={cardBg} borderRadius="md" overflow="hidden" height="300px">
               <PriceChart data={chartData1h} interval="1h" />
             </Box>
           </CardBody>
         </Card>
       </SimpleGrid>
-
-      {/* Visual separator */}
-      <Divider borderColor="gray.600" />
-
-      {/* QR Code Section */}
-      <Card bg={cardBg} borderColor={borderColor} borderWidth="1px" boxShadow="lg">
-        <CardBody>
-          <Flex direction={{ base: 'column', md: 'row' }} align="start" justify="space-between" gap={8}>
-            {/* Left Section - QR Code and Text */}
-            <Flex direction={{ base: 'column', md: 'row' }} align="start" gap={8}>
-              {/* QR Code */}
-              <Box
-                as="img"
-                src={`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=https://copytrade.securecrypto.cash`}
-                alt="Copy Trading QR Code"
-                width="160px"
-                height="160px"
-                borderRadius="lg"
-                bg="white"
-                p={3}
-                boxShadow="lg"
-              />
-              
-              {/* Text Content */}
-              <VStack align="start" spacing={3}>
-                <VStack align="start" spacing={1}>
-                  <Text fontSize="2xl" fontWeight="bold" bgGradient="linear(to-r, blue.400, purple.500)" bgClip="text">
-                    Start Copy Trading
-                  </Text>
-                  <Text fontSize="md" color={mutedTextColor}>
-                    Scan the QR code to begin your automated trading journey
-                  </Text>
-                </VStack>
-                
-                <Divider borderColor="gray.600" />
-                
-                <VStack align="start" spacing={2}>
-                  <Text fontSize="md" color={textColor} fontWeight="medium">
-                    Available on Multiple Platforms:
-                  </Text>
-                  <HStack spacing={3}>
-                    <Text color="blue.400">Binance</Text>
-                    <Text color="purple.400">KuCoin</Text>
-                    <Text color="green.400">MEXC</Text>
-                    <Text color="orange.400">More...</Text>
-                  </HStack>
-                </VStack>
-              </VStack>
-            </Flex>
-
-            {/* Right Section - Trading Stats */}
-            <VStack align="end" spacing={6} minW={{ md: '300px' }}>
-              {/* First Line - Copy Traders and ROI */}
-              <HStack spacing={12} align="start">
-                <VStack align="center" spacing={1}>
-                  <Text fontSize="sm" color={mutedTextColor}>Copy Traders</Text>
-                  <Text fontSize="2xl" color={textColor} fontWeight="bold">2,547</Text>
-                </VStack>
-
-                <VStack align="center" spacing={1}>
-                  <Text fontSize="sm" color={mutedTextColor}>ROI (30d)</Text>
-                  <Text fontSize="2xl" color="green.400" fontWeight="bold">+187.5%</Text>
-                </VStack>
-              </HStack>
-
-              {/* Second Line - Strategy, Profit Share, Win Rate */}
-              <SimpleGrid columns={3} spacing={8}>
-                <VStack align="center" spacing={1}>
-                  <Text fontSize="sm" color={mutedTextColor}>Strategy</Text>
-                  <Text fontSize="lg" color={textColor}>NASO-CULO</Text>
-                </VStack>
-
-                <VStack align="center" spacing={1}>
-                  <Text fontSize="sm" color={mutedTextColor}>Profit Share</Text>
-                  <Text fontSize="lg" color={textColor}>10%</Text>
-                </VStack>
-
-                <VStack align="center" spacing={1}>
-                  <Text fontSize="sm" color={mutedTextColor}>Win Rate</Text>
-                  <Text fontSize="lg" color="green.400">93%</Text>
-                </VStack>
-              </SimpleGrid>
-            </VStack>
-          </Flex>
-        </CardBody>
-      </Card>
     </VStack>
   );
 };
